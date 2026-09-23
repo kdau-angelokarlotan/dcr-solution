@@ -5,6 +5,7 @@ export interface Task {
   Id: number;
   Title: string;
   ChangeRequestId: number;
+  ParentTaskId?: number;
   PublishedDocumentId?: number;
   PublishedDocument?: {
     Id: number;

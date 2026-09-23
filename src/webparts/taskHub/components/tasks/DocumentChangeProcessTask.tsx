@@ -1356,6 +1356,7 @@
               canAdd={isCa}
               canStart={isAuthor}
               canRemove={isCa || isAuthor}
+              currentUserName={currentUser.Title}
               onRefetch={refetch}
             />
           </DialogContent>

@@ -788,7 +788,13 @@ export const TaskDetail = ({
       (p) => p.Person?.Id === personId && p.Role === role,
     );
     if (!row || !cr) return;
-    await SharePointService.deleteParticipant(row.Id, cr.ID, personId);
+    await SharePointService.deleteParticipant(
+      row.Id,
+      cr.ID,
+      personId,
+      "Removed from task detail",
+      currentUser?.Title ?? "Unknown",
+    );
     refetchParticipants().catch(console.error);
   };
 

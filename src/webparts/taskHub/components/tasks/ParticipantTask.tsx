@@ -92,6 +92,7 @@ const ParticipantTask = ({
               ? "Approved"
               : "Complete"
             : "Rejected",
+        Comments: participantNotes.trim() || undefined,
       });
       onTaskComplete();
     } catch (err) {

@@ -16,6 +16,7 @@ import {
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Document } from "../../../shared/types/Document";
 import { BRANDING, getDocTypeColors } from "../../../shared/theme/theme";
+import { getSitePrefix } from "../../../shared/utils/getSitePrefix";
 interface DocumentsTableProps {
   documents: Document[];
   onRowClick: (doc: Document) => void;
@@ -97,7 +98,7 @@ const DocumentsTable: React.FC<DocumentsTableProps> = ({
   documents,
   onRowClick,
 }) => {
-  const sitePrefix = `${window.location.origin}/sites/DocumentChangeManagementDemo`;
+  const sitePrefix = getSitePrefix();
   const [orderBy, setOrderBy] = useState<SortKey>("Modified");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 

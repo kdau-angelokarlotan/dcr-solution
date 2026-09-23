@@ -677,7 +677,7 @@ const getParticipants = async (
         "Person/EMail",
       )
       .expand("Person")
-      .filter(`ChangeRequestId eq ${changeRequestId}`)();
+      .filter(`ChangeRequestId eq ${changeRequestId} and Status ne 'Removed'`)();
 
     return participants as Participant[];
   } catch (error) {
@@ -745,11 +745,12 @@ const deleteParticipant = async (
   id: number,
   changeRequestId: number,
   personId: number,
+  reason: string,
+  removedByName: string,
 ): Promise<void> => {
   try {
     const sp = PnPSetup.getSP();
 
-    // 1. Find their active task
     const tasks = await sp.web.lists
       .getByTitle("Tasks")
       .items.select("Id", "Status", "AssignedTo/Id")
@@ -758,23 +759,23 @@ const deleteParticipant = async (
         `ChangeRequestId eq ${changeRequestId} and TaskType eq 'Participant Task'`,
       )();
 
-    const participantTask = tasks.find(
+    const activeTask = tasks.find(
       (t) =>
         t.AssignedTo?.Id === personId &&
         t.Status !== "Complete" &&
         t.Status !== "Cancelled",
     );
 
-    // 2. Cancel it if found
-    if (participantTask) {
+    if (activeTask) {
       await sp.web.lists
         .getByTitle("Tasks")
-        .items.getById(participantTask.Id)
-        .update({ Status: "Cancelled" });
+        .items.getById(activeTask.Id)
+        .update({ Status: "Removed", Comments: `Removed by ${removedByName}: ${reason}` });
     }
 
-    // 3. Delete the participant row
-    await sp.web.lists.getByTitle("CR Participants").items.getById(id).delete();
+    await sp.web.lists.getByTitle("CR Participants").items.getById(id).update({
+      Status: "Removed",
+    });
   } catch (error) {
     console.error("Error deleting participant:", error);
     throw error;
@@ -841,7 +842,7 @@ const getParticipantsByChangeRequestId = async (changeRequestId: number) => {
       "Instructions",
       "Notes",
     )
-    .filter(`ChangeRequestId eq ${changeRequestId}`)
+    .filter(`ChangeRequestId eq ${changeRequestId} and Status ne 'Removed'`)
     .top(50)();
 
   const enriched = await Promise.all(
@@ -876,7 +877,8 @@ const getParticipantByTaskContext = async (
   const results = await sp.web.lists
     .getByTitle("CR Participants")
     .items.select("Id", "Notes", "Role", "Instructions")
-    .filter(`ChangeRequestId eq ${changeRequestId} and PersonId eq ${userId}`)
+    .filter(`ChangeRequestId eq ${changeRequestId} and PersonId eq ${userId} and Status ne 'Removed'`)
+    .orderBy("Id", false)
     .top(1)();
 
   return results[0] ?? null;
@@ -1077,6 +1079,7 @@ const getAuditTasksByCRId = async (
         "Created",
         "Modified", // ← replaces CompletedDate
         "ChangeRequestId",
+        "ParentTaskId",
         "AssignedTo/Id",
         "AssignedTo/Title",
         "AssignedTo/EMail",

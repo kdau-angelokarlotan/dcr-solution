@@ -33,6 +33,7 @@ interface ParticipantsTableProps {
   canAdd: boolean;
   canStart: boolean;
   canRemove: boolean;
+  currentUserName: string;
   onRefetch: () => void;
 }
 
@@ -92,16 +93,36 @@ const RemoveConfirmModal = ({
 }: {
   open: boolean;
   participant: Participant | null;
-  onConfirm: () => void;
+  onConfirm: (reason: string) => Promise<void>;
   onClose: () => void;
 }) => {
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
   const isInProgress = participant?.Status === "In Progress";
+  const trimmedReason = reason.trim();
+
+  const handleConfirm = async (): Promise<void> => {
+    if (!trimmedReason) return;
+    setSaving(true);
+    try {
+      await onConfirm(trimmedReason);
+      setReason("");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClose = (): void => {
+    if (saving) return;
+    setReason("");
+    onClose();
+  };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 14, fontWeight: 700, color: "#323130" }}>
         Remove Participant
-        <IconButton size="small" onClick={onClose}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+        <IconButton size="small" onClick={handleClose}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
       </DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 1 }}>
 
@@ -128,17 +149,27 @@ const RemoveConfirmModal = ({
           from this change request?
           {isInProgress ? " Their active task will be cancelled." : ""}
         </Typography>
+        <TextField
+          label="Reason for removal *"
+          multiline
+          rows={3}
+          fullWidth
+          size="small"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-        <Button size="small" onClick={onClose} sx={{ textTransform: "none", color: "#605E5C" }}>
+        <Button size="small" onClick={handleClose} sx={{ textTransform: "none", color: "#605E5C" }}>
           Cancel
         </Button>
         <Button
           size="small" variant="contained" color="error" disableElevation
-          onClick={onConfirm}
+          disabled={!trimmedReason || saving}
+          onClick={handleConfirm}
           sx={{ textTransform: "none" }}
         >
-          {isInProgress ? "Remove & Cancel Task" : "Remove"}
+          {saving ? "Removing..." : isInProgress ? "Remove & Cancel Task" : "Remove"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -574,7 +605,7 @@ const ParticipantRow = ({
 
 const ParticipantSection = ({
   title, role, participants, excludeIds,
-  canAdd, canStart, canRemove, changeRequestId, onRefetch,
+  canAdd, canStart, canRemove, changeRequestId, currentUserName, onRefetch,
 }: {
   title: string;
   role: "Contributor" | "Reviewer";
@@ -584,6 +615,7 @@ const ParticipantSection = ({
   canStart: boolean;
   canRemove: boolean;
   changeRequestId: number;
+  currentUserName: string;
   onRefetch: () => void;
 }) => {
   const [addOpen, setAddOpen] = useState(false);
@@ -640,14 +672,15 @@ const ParticipantSection = ({
     }
   };
 
-  const handleRemoveConfirm = async (): Promise<void> => {
-    if (!removeTarget) return;
+  const handleRemoveConfirm = async (reason: string): Promise<void> => {
+    if (!removeTarget || !removeTarget.Person) return;
     try {
-      // Passes personId so deleteParticipant can cancel any active task first
       await SharePointService.deleteParticipant(
         removeTarget.Id,
         changeRequestId,
         removeTarget.Person.Id,
+        reason,
+        currentUserName,
       );
       setRemoveTarget(null);
       onRefetch();
@@ -756,7 +789,7 @@ const ParticipantSection = ({
 
 const ParticipantsTable = ({
   changeRequestId, contributors, reviewers,
-  loading, canAdd, canStart, canRemove, onRefetch,
+  loading, canAdd, canStart, canRemove, currentUserName, onRefetch,
 }: ParticipantsTableProps) => {
   const excludeContributorIds = reviewers
     .map((r) => r.Person?.Id)
@@ -780,12 +813,14 @@ const ParticipantsTable = ({
         title="Contributors" role="Contributor"
         participants={contributors} excludeIds={excludeContributorIds}
         canAdd={canAdd} canStart={canStart} canRemove={canRemove}
+        currentUserName={currentUserName}
         changeRequestId={changeRequestId} onRefetch={onRefetch}
       />
       <ParticipantSection
         title="Reviewers" role="Reviewer"
         participants={reviewers} excludeIds={excludeReviewerIds}
         canAdd={canAdd} canStart={canStart} canRemove={canRemove}
+        currentUserName={currentUserName}
         changeRequestId={changeRequestId} onRefetch={onRefetch}
       />
     </Box>

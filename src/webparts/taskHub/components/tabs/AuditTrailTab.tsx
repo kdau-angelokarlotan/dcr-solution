@@ -45,6 +45,7 @@ const STATUS_CONFIG: Record<string, { bg: string; color: string; dot: string }> 
   "Marked for Document Obsoletion": { bg: "#FDE7E9", color: "#A4262C", dot: "#D13438" },
   Reassigned:                    { bg: "#EFF6FC", color: "#0078D4", dot: "#0078D4" },
   Cancelled:                     { bg: "#F3F2F1", color: "#A19F9D", dot: "#C8C6C4" },
+  Removed:                       { bg: "#FDE7E9", color: "#A4262C", dot: "#D13438" },
   "Needs more info":             { bg: "#FFF4CE", color: "#835B00", dot: "#FFB900" },
   Pending:                       { bg: "#F3F2F1", color: "#605E5C", dot: "#C8C6C4" },
   "In Progress":                 { bg: "#EFF6FC", color: "#0078D4", dot: "#0078D4" },
@@ -79,7 +80,7 @@ const formatDateOnly = (date: Date | string | undefined): string => {
 // Is this task completed/resolved (i.e. not still active)?
 const isResolved = (status: string): boolean =>
   ["Approved", "Complete", "Rejected", "Marked as Minor Change",
-   "Marked for Document Obsoletion", "Reassigned", "Cancelled"].includes(status);
+  "Marked for Document Obsoletion", "Reassigned", "Cancelled", "Removed"].includes(status);
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
@@ -152,6 +153,7 @@ interface AuditEntryProps {
 
 const AuditEntry = ({ task, isFirst, isLast }: AuditEntryProps) => {
   const resolved = isResolved(task.Status);
+  const isNegative = ["Cancelled", "Rejected", "Removed", "Marked for Document Obsoletion"].includes(task.Status);
   const assigneeName = task.AssignedTo?.Title ?? "Unassigned";
   const roleLabel = TASK_TYPE_LABELS[task.TaskType] ?? task.TaskType;
 
@@ -232,13 +234,13 @@ const AuditEntry = ({ task, isFirst, isLast }: AuditEntryProps) => {
               mt: 1,
               px: 1.5,
               py: 1,
-              backgroundColor: "#F8F7F6",
-              border: "1px solid #EDEBE9",
-              borderLeft: "3px solid #0078D4",
+              backgroundColor: isNegative ? "#FDE7E9" : "#F8F7F6",
+              border: `1px solid ${isNegative ? "#F1B0B7" : "#EDEBE9"}`,
+              borderLeft: `3px solid ${isNegative ? "#D13438" : "#0078D4"}`,
               borderRadius: "0 4px 4px 0",
             }}
           >
-            <Typography sx={{ fontSize: 12, color: "#323130", lineHeight: 1.6, fontStyle: "italic" }}>
+            <Typography sx={{ fontSize: 12, color: isNegative ? "#A4262C" : "#323130", lineHeight: 1.6, fontStyle: "italic" }}>
               "{task.Comments}"
             </Typography>
           </Box>
@@ -295,9 +297,66 @@ const SubmissionEntry = ({ cr, isLast }: { cr: IChangeRequest; isLast: boolean }
   </Box>
 );
 
+interface ParticipantChildGroupProps {
+  children: (Task & { CompletedDate?: string })[];
+}
+
+const ParticipantChildGroup = ({ children }: ParticipantChildGroupProps): React.ReactElement => {
+  const [expanded, setExpanded] = React.useState(false);
+  const visible = expanded ? children : children.slice(0, 2);
+  const remaining = children.length - visible.length;
+
+  return (
+    <Box sx={{ ml: 4, pl: 1.5, borderLeft: "2px solid #E1DFDD", mb: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+      {visible.map((task) => {
+        const cfg = STATUS_CONFIG[task.Status] ?? { bg: "#F3F2F1", color: "#605E5C", dot: "#C8C6C4" };
+        const assigneeName = task.AssignedTo?.Title ?? "Unassigned";
+        const roleLabel = TASK_TYPE_LABELS[task.TaskType] ?? task.TaskType;
+        return (
+          <Box key={task.Id} sx={{ backgroundColor: "#FAFAFA", borderRadius: "6px", p: 1.25 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#323130" }}>{roleLabel}</Typography>
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, px: 1, py: 0.2, borderRadius: "10px", backgroundColor: cfg.bg }}>
+                <Box sx={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: cfg.dot }} />
+                <Typography sx={{ fontSize: 10, fontWeight: 600, color: cfg.color }}>{task.Status}</Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.5 }}>
+              <Avatar name={assigneeName} size={18} />
+              <Typography sx={{ fontSize: 11, color: "#323130" }}>{assigneeName}</Typography>
+              <Typography sx={{ fontSize: 10, color: "#A19F9D", ml: "auto" }}>{formatDateOnly(task.Created)}</Typography>
+            </Box>
+            {task.Comments && task.Comments.trim() && (
+              <Box sx={{
+                mt: 0.75, px: 1, py: 0.75,
+                backgroundColor: ["Cancelled", "Rejected", "Removed", "Marked for Document Obsoletion"].includes(task.Status) ? "#FDE7E9" : "#F3F2F1",
+                borderLeft: `3px solid ${["Cancelled", "Rejected", "Removed", "Marked for Document Obsoletion"].includes(task.Status) ? "#D13438" : "#0078D4"}`,
+                borderRadius: "0 4px 4px 0",
+              }}>
+                <Typography sx={{ fontSize: 11, color: ["Cancelled", "Rejected", "Removed", "Marked for Document Obsoletion"].includes(task.Status) ? "#A4262C" : "#323130", fontStyle: "italic" }}>
+                  "{task.Comments}"
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        );
+      })}
+      {remaining > 0 && (
+        <Box
+          component="button"
+          onClick={() => setExpanded(true)}
+          sx={{ fontSize: 11, color: "#605E5C", background: "none", border: "none", textAlign: "left", cursor: "pointer", py: 0.5 }}
+        >
+          + {remaining} more participant task{remaining === 1 ? "" : "s"}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const AuditTrailTab = ({ cr }: AuditTrailTabProps) => {
+const AuditTrailTab = ({ cr }: AuditTrailTabProps): React.ReactElement => {
   const [tasks, setTasks] = useState<(Task & { CompletedDate?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -329,7 +388,24 @@ const AuditTrailTab = ({ cr }: AuditTrailTabProps) => {
     );
   }
 
-  const totalEntries = tasks.length + 1; // +1 for submission entry
+  const topLevelTasks = tasks.filter((t) => t.TaskType !== "Participant Task");
+  const childTasksByParentId = tasks
+    .filter((t) => t.TaskType === "Participant Task" && t.ParentTaskId)
+    .reduce((acc, t) => {
+      const key = t.ParentTaskId as number;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(t);
+      return acc;
+    }, {} as Record<number, (Task & { CompletedDate?: string })[]>);
+
+  const orphanedChildTasks = tasks.filter(
+    (t) => t.TaskType === "Participant Task" && (!t.ParentTaskId || !topLevelTasks.some((p) => p.Id === t.ParentTaskId))
+  );
+  const allTopLevel = [...topLevelTasks, ...orphanedChildTasks].sort(
+    (a, b) => new Date(a.Created).getTime() - new Date(b.Created).getTime()
+  );
+
+  const totalEntries = allTopLevel.length + Object.values(childTasksByParentId).reduce((sum, arr) => sum + arr.length, 0) + 1;
 
   return (
     <Box p={3} display="flex" flexDirection="column" gap={0}>
@@ -357,15 +433,22 @@ const AuditTrailTab = ({ cr }: AuditTrailTabProps) => {
 
       {/* Timeline */}
       <Box sx={{ pl: 0.5 }}>
-        <SubmissionEntry cr={cr} isLast={tasks.length === 0} />
-        {tasks.map((task, index) => (
-          <AuditEntry
-            key={task.Id}
-            task={task}
-            isFirst={false}
-            isLast={index === tasks.length - 1}
-          />
-        ))}
+        <SubmissionEntry cr={cr} isLast={allTopLevel.length === 0} />
+        {allTopLevel.map((task, index) => {
+          const children = childTasksByParentId[task.Id] ?? [];
+          return (
+            <React.Fragment key={task.Id}>
+              <AuditEntry
+                task={task}
+                isFirst={false}
+                isLast={index === allTopLevel.length - 1 && children.length === 0}
+              />
+              {children.length > 0 && (
+                <ParticipantChildGroup>{children}</ParticipantChildGroup>
+              )}
+            </React.Fragment>
+          );
+        })}
       </Box>
     </Box>
   );

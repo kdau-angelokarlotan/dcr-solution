@@ -12,6 +12,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Document } from "../../../shared/types/Document";
 import { BRANDING, getDocTypeColors, getClassificationColors } from "../../../shared/theme/theme";
+import { getSitePrefix } from "../../../shared/utils/getSitePrefix";
 
 interface DocumentDetailProps {
   document: Document;
@@ -24,7 +25,7 @@ const DocumentDetail: React.FC<DocumentDetailProps> = ({
 }) => {
   const [pdfLoading, setPdfLoading] = useState(true);
 
-  const sitePrefix = `${window.location.origin}/sites/DocumentChangeManagementDemo`;
+  const sitePrefix = getSitePrefix();
 
   // Viewer always uses PDF
   const viewerUrl = document.PublishedFileUrl

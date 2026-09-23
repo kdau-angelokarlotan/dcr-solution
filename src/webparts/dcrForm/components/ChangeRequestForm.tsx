@@ -19,6 +19,7 @@ import SharePointService from "../../../shared/services/SharePointService";
 import { InitialForm } from "./InitialForm";
 import { AdditionalForm } from "./AdditionalForm";
 import { BRANDING } from "../../../shared/theme/theme";
+import { getSitePrefix } from "../../../shared/utils/getSitePrefix";
 
 export interface ChangeRequestFormData {
   title: string;
@@ -139,7 +140,7 @@ const SuccessScreen: React.FC<{ cr: IChangeRequest; onSubmitAnother: () => void 
         </Button>
         <Button
           onClick={() =>
-            window.open(`${window.location.origin}/sites/DocumentChangeManagementDemo/SitePages/Document-Portal.aspx`, "_blank")
+            window.open(`${getSitePrefix()}/SitePages/Document-Portal.aspx`, "_blank")
           }
           sx={{ padding: "6px 16px", fontSize: "13px", fontWeight: 500, color: BRANDING.primary, textTransform: "none", "&:hover": { backgroundColor: "#F3F2F1" } }}
         >
