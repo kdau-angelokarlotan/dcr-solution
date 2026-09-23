@@ -19,6 +19,7 @@ import { useDocuments } from "../../../shared/hooks/useDocuments";
 import { useCurrentUser } from "../../../shared/hooks/useCurrentUser";
 import { useReadAcknowledgements } from "../../../shared/hooks/useReadAcknowledgements";
 import { BRANDING } from "../../../shared/theme/theme";
+import { getSitePrefix } from "../../../shared/utils/getSitePrefix";
 import FilterDropdown from "./FilterDropdown";
 import DocumentsTable from "./DocumentsTable";
 import DocumentDetail from "./DocumentDetail";
@@ -258,7 +259,7 @@ const DocumentPortal: React.FC<DocumentPortalProps> = ({ hasTeamsContext = false
           </Typography>
           <Button
             size="small"
-            href="/sites/DocumentChangeManagementDemo/SitePages/Read-Requirements.aspx"
+            href={`${getSitePrefix()}/SitePages/Read-Requirements.aspx`}
             sx={{
               fontSize: 12,
               textTransform: "none",
